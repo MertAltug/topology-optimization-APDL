@@ -1,0 +1,55 @@
+ALLSEL !With this loop create nodes at the center of each element
+ElementNo = ELNEXT(0)
+*DO,i,1,numberofelements,1
+	CSYS,0	
+	*GET,centX,ELEM,ElementNo,CENT,X
+	*GET,centY,ELEM,ElementNo,CENT,Y
+	*GET,centZ,ELEM,ElementNo,CENT,Z
+	N,NodeMax+i,centX,centY,centZ      !defines a node for element center !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	ElementNo = ELNEXT(ElementNo)
+*ENDDO
+
+
+ALLSEL ! With this loop element neighbors and distances detected.
+ElementNo = ELNEXT(0)
+*DIM,TotalDistances,ARRAY,numberofelements,2
+*DO,i,1,numberofelements,1
+	CSYS,0	
+	*GET,centX,ELEM,ElementNo,CENT,X
+	*GET,centY,ELEM,ElementNo,CENT,Y
+	*GET,centZ,ELEM,ElementNo,CENT,Z
+
+	LOCAL,11,2,centX,centY,centZ !define local spherical coordinate system
+	CSYS,11 !id of local spherical coordinate system
+	ALLSEL
+	NSEL,NONE
+	*DO,NodeNo,NodeMax+1,NodeMax+numberofelements,1
+		NSEL,A,,,NodeNo
+	*ENDDO
+	NSEL,R,LOC,X,0,rmin !select nodes in the sphere with radius rmin
+	*GET,K,NODE,,COUNT
+	*VGET,ElementNeighbors%ElementNo%,NODE,,NLIST
+	*DIM,NeighborWeights%ElementNo%,ARRAY,K,2
+	CSYS,0
+	totalweight = 0 ! sum(w(r_ij)) over j = 1,2,..,K
+	
+	nodenumber = NDNEXT(0) 
+	*DO,j,1,K,1
+		*GET,nodeX,NODE,nodenumber,LOC,X
+		*GET,nodeY,NODE,nodenumber,LOC,Y
+		*GET,nodeZ,NODE,nodenumber,LOC,Z
+
+		rij = sqrt((centX-nodeX)*(centX-nodeX)+(centY-nodeY)*(centY-nodeY)+(centZ-nodeZ)*(centZ-nodeZ))
+		tempweight = rmin - rij
+		NeighborWeights%ElementNo%(j,1) = tempweight
+		NeighborWeights%ElementNo%(j,2) = ElementNeighbors%ElementNo%(j) - NodeMax
+		ElementNeighbors%ElementNo%(j) = ElementNeighbors%ElementNo%(j) - NodeMax
+		totalweight = totalweight + tempweight
+		nodenumber = NDNEXT(nodenumber)
+	*ENDDO
+	TotalDistances(ElementNo,1) = totalweight ! store sum of all neighbor distances
+	TotalDistances(ElementNo,2) = ElementNo
+
+	ElementNo = ELNEXT(ElementNo)
+*ENDDO
+ALLSEL

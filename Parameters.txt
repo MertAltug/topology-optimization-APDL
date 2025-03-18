@@ -1,0 +1,75 @@
+ESEL,MAT,1
+*GET,numberofelements,ELEM,,COUNT
+*DIM,Elements,ARRAY,numberofelements,4
+	*vget,Elements(1,1),elem,,elist
+	*vget,Elements(1,2),elem,,CENT,X
+	*vget,Elements(1,3),elem,,CENT,Y
+	*vget,Elements(1,4),elem,,CENT,Z
+
+NSLE,S,CORNER
+
+*GET,numberofcornernodes,NODE,,COUNT
+*DIM,Nodes,ARRAY,numberofcornernodes,4
+	*vget,Nodes(1,1),node,,NLIST
+	*vget,Nodes(1,2),node,,LOC,X
+	*vget,Nodes(1,3),node,,LOC,Y
+	*vget,Nodes(1,4),node,,LOC,Z
+
+*GET,NodeMax,NODE,0,NUM,MAXD
+
+ALLSEL
+
+*GET,numberofallnodes,NODE,,COUNT
+
+!To modify element stiffness we have to assign a unique modified material to each element
+*DO,e,2,numberofelements,1
+	MPCOPY,,1,e
+*ENDDO 
+
+!Define UD CarbonFiber material parameters
+E_X = 209000000000	! Pa
+E_Y = 9450000000		! Pa
+E_Z = 9450000000		! Pa
+G_XY = 5500000000	! Pa
+G_YZ = 3900000000	! Pa
+G_XZ = 5500000000	! Pa
+
+
+Emin = 10**(-9)
+Emax = 1.0
+p = 3 ! Penalty
+rho_min = 0.001 ! Minimum density
+rmin = ElementSize*2 ! filter radius
+
+!Element 
+
+*DIM,rho,ARRAY,numberofelements ! element densities
+*DIM,rho_old,ARRAY,numberofelements
+*DIM,rho_new,ARRAY,numberofelements
+*DIM,ce,ARRAY,numberofelements
+
+*DIM,dc,ARRAY,numberofelements
+
+*DIM,temp_dc,ARRAY,numberofelements
+volumeFraction = 0.4
+
+constraintVolume = NINT(numberofelements*volumeFraction)
+
+
+tolerance = 0.01 ! tolerance for change in design
+
+totaliterations = 50
+
+*DIM,obj,ARRAY,totaliterations
+
+g = 0 ! must be initialized to use the NGuyen/Paulino OC approach
+
+FA_Iterations = 2
+
+*DIM,StressState,ARRAY,numberofelements,6! Average Stress State at the centroid of each element is stored in this ARRAY i.e. Stresses X,Y,Z,XY,YZ,XZ  
+
+*DIM,Orientations,ARRAY,numberofelements,3! Principal Stress Orientations(Euler Angles XY,YZ,XZ) are stored for each element at the centroid.
+
+*DIM,ComplianceHistory,ARRAY,FA_Iterations+1
+
+*DIM,temp_stress,ARRAY,numberofelements,6

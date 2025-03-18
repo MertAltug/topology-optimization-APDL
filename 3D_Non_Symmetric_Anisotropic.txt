@@ -1,0 +1,78 @@
+/INPUT,Modelling,txt,,0 
+/INPUT,Parameters,txt,,0
+/INPUT,Neighbors,txt,,0 
+/INPUT,Initialize_Design,txt,,0
+
+terminate = 1
+loop = 0
+change = 1
+*DIM,abschange,ARRAY,numberofelements
+
+*DOWHILE,terminate
+	loop = loop+1 !count iterations
+	*IF,loop,GT,totaliterations,THEN
+		terminate = -1
+		*CYCLE
+		
+	*ENDIF
+
+	*IF,change,LT,0.01,THEN
+		terminate = -1
+		*CYCLE
+	*ENDIF
+
+	!!!!!!!!!!!!!!ALIGN FIBERS FIRST !!!!!!!!!!!!!!!!!!!!!
+	/INPUT,Fiber_Alignment,txt,,0 
+
+	!!!!!!!!!!!!!SENSITIVITY ANALYSIS AND DESIGN UPDATE WITH OPTIMALITY CRITERIA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	/INPUT,Sensitivity,txt,,0 
+	/INPUT,OC,txt,,0
+
+	!!!!!!!!!!!! DETERMINE CHANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	*VOPER,density_change,rho,SUB,rho_old
+	
+	*DO,i,1,numberofelements,1
+		abschange(i) = abs(density_change(i))
+	*ENDDO
+	*VSCFUN,change,MAX,abschange ! Infinity norm of the density change between rho and rho_old
+
+*ENDDO
+
+/PREP7
+!Define UD CarbonFiber
+MP,EX,numberofelements+1,209000000000,	! Pa
+MP,EY,numberofelements+1,9450000000,	! Pa
+MP,EZ,numberofelements+1,9450000000,	! Pa
+MP,PRXY,numberofelements+1,0.27,
+MP,PRYZ,numberofelements+1,0.4,
+MP,PRXZ,numberofelements+1,0.27,
+MP,GXY,numberofelements+1,5500000000,	! Pa
+MP,GYZ,numberofelements+1,3900000000,	! Pa
+MP,GXZ,numberofelements+1,5500000000,	! Pa
+
+	
+ALLSEL
+
+*DO,i,1,numberofelements,1
+
+	*IF,rho(i),GT,0.8,THEN
+		EMODIF,i,MAT,numberofelements+1
+
+	*ENDIF
+
+*ENDDO
+
+ESEL,MAT,numberofelements+1
+EPLOT
+
+ESEL,INVE
+*VGET,emptyelements,ELEM,,ELIST
+*VSCFUN,numberofempty,LAST,emptyelements ! get number of full elements
+ElementNo = ELNEXT(0)
+*DO,i,1,numberofempty,1
+	CSDELE,ElementNo+20
+	ElementNo = ELNEXT(ElementNo)
+*ENDDO
+
+ESEL,INVE
+EPLOT

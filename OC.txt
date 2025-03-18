@@ -1,0 +1,79 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!! Implementation of Optimality Criteria Method based on E. Andreassen et al.(2011)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+L1 = 0 ! lower limit
+L2 = 1e9 ! upper limit
+move = 0.2 ! tuning parameter for OC
+
+condition = 1
+
+!rhonew : 1D array length of numberofelements
+!ce: element sensitivity penalized by element density
+!dc : derivative of element sensitivity wrt element density
+
+*VFUN,rho_old,COPY,rho
+
+*DOWHILE,condition
+	tolerance = (L2-L1)/(L2+L1) !Check tolerance
+	*IF,tolerance,LE,0.001,THEN
+		condition = -1
+		*CYCLE
+	*ENDIF
+
+	LMID = 0.5*(L1+L2)
+	*DO,e,1,numberofelements,1
+		
+		*IF,rho(e)+move,LT,rho(e)*sqrt(-dc(e)/LMID),THEN !this square root is actually eta = 0.5 which is also a tuning parameter for OC
+			rho_new(e) = rho(e)+move
+		*ELSE
+			rho_new(e) = rho(e)*sqrt(-dc(e)/LMID)
+		*ENDIF
+
+		*IF,rho_new(e),GT,1.0,THEN
+			rho_new(e) = 1.0
+		*ENDIF
+		*IF,rho_new(e),LT,rho(e)-move,THEN
+			rho_new(e) = rho(e)-move
+		*ENDIF
+		*IF,rho_new(e),LT,0.0,THEN
+			rho_new(e) = 0.0
+		*ENDIF
+	
+	*ENDDO 
+	
+	*VOPER,volume_diff,rho_new,SUB,rho
+
+	*VSCFUN,volumechange,SUM,volume_diff
+	gt = g + volumechange
+
+	*IF,gt,GT,0.0,THEN
+		L1=LMID
+	*ELSE		
+		L2=LMID
+	*ENDIF
+
+*ENDDO
+
+g = gt
+*VFUN,rho,COPY,rho_new
+
+!!!!!!!!!!!!!!!!!UPDATE DESIGN!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+/PREP7
+
+*DO,e,1,numberofelements,1
+	!Define UD CarbonFiber
+	MP,EX,e,E_X*(Emin+(rho(e)**p)*(Emax-Emin))	! Pa
+	MP,EY,e,E_Y*(Emin+(rho(e)**p)*(Emax-Emin))	! Pa
+	MP,EZ,e,E_Z*(Emin+(rho(e)**p)*(Emax-Emin))	! Pa
+
+	MP,GXY,e,G_XY*(Emin+(rho(e)**p)*(Emax-Emin))	! Pa
+	MP,GYZ,e,G_YZ*(Emin+(rho(e)**p)*(Emax-Emin))	! Pa
+	MP,GXZ,e,G_XZ*(Emin+(rho(e)**p)*(Emax-Emin))	! Pa
+
+	EMODIF,e,MAT,e
+*ENDDO 
+
+
+ALLSEL

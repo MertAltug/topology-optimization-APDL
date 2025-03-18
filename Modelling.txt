@@ -1,0 +1,58 @@
+!/INPUT,input_file,inp,,0
+!This input file can be generated from Mechanical Workbench.
+!Search for write input file in the search box while you are in
+!solution tab in the project tree.
+/PREP7
+
+!Create a block
+X1 = 0.0
+X2 = 0.10 !10 cm 
+Y1 = 0.0
+Y2 = 0.05
+Z1 = 0.0
+Z2 = 0.06
+
+BLOCK,X1,X2,Y1,Y2,Z1,Z2
+
+ET,1,SOLID185
+
+!Define UD CarbonFiber
+MP,EX,1,209000000000,	! Pa
+MP,EY,1,9450000000,	! Pa
+MP,EZ,1,9450000000,	! Pa
+MP,PRXY,1,0.27,
+MP,PRYZ,1,0.4,
+MP,PRXZ,1,0.27,
+MP,GXY,1,5500000000,	! Pa
+MP,GYZ,1,3900000000,	! Pa
+MP,GXZ,1,5500000000,	! Pa
+
+
+!!Define void
+!MP,EX,2,1E6                 !Young's modulus
+!MP,PRXY,2,0.3                !Poission's ratio
+
+ElementSize = 0.005
+ESIZE,ElementSize
+VMESH,ALL
+!Create BC
+NSEL,S,LOC,X,0
+D,ALL,ALL,0
+ALLSEL
+
+!LOADING LOCATION
+LoadX = 0.10
+LoadY = 0.025
+LoadZ = 0.03
+
+F,Node(LoadX,LoadY,LoadZ),Fy,-1E3 
+
+ALLSEL
+!/SOLU
+!SOLVE
+!/POST1
+!SET,LAST
+!PLESOL,SEND,ELASTIC
+!PLNSOL,U,SUM
+!Select parts which will be excluded from Topology Optimization.
+

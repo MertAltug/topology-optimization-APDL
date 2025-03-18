@@ -1,0 +1,51 @@
+ALLSEL
+
+/SOLU
+SOLVE
+/POST1
+SET,LAST
+ETABLE,ElementEnergies,SENE,ELASTIC
+ETABLE,ElementVolumes,VOLU
+
+!!!!!!!!!!!!!!!!CALCULATE OBJECTIVE and ELEMENT SENSITIVITIES!!!!!!!!!!!!!!
+obj(loop) = 0
+*DO,i,1,numberofelements,1	
+	*GET,ce(Elements(i),1),ELEM,Elements(i),ETAB,ElementEnergies
+	*GET,ElementVolume,ELEM,Elements(i),ETAB,ElementVolumes
+	ce(Elements(i),1) = ce(Elements(i),1)/ElementVolume ! use energy densities. if you use element energies it will not converge due to divide by zero error
+	!dc(Elements(i),1) = -p*(rho(e)**(p-1))*ce(Elements(i),1)
+	dc(Elements(i),1) = -p*ce(Elements(i),1)
+	obj(loop) = obj(loop) + (Emin+(rho(e)**(p-1))*(Emax-Emin))*ce(Elements(i),1)
+*ENDDO
+
+!!!!!!!!!!!!!!! FILTER SENSITIVITIES!!!!!!!!!!!!!!!!!!!!
+
+ALLSEL
+ElementNo = ELNEXT(0)
+*DO,i,1,numberofelements,1
+	*VSCFUN,K,LAST,ElementNeighbors%ElementNo% ! get number of neighbors for the element
+	temp_dc(ElementNo,1) = 0
+	*DO,j,1,K,1
+		temp_dc(ElementNo,1) = temp_dc(ElementNo,1) + dc(ElementNeighbors%ElementNo%(j),1)*NeighborWeights%ElementNo%(j,1)
+	*ENDDO
+	temp_dc(ElementNo,1) = temp_dc(ElementNo,1) / TotalDistances(ElementNo,1)
+	
+	ElementNo = ELNEXT(ElementNo)
+*ENDDO
+
+*VFUN,dc,COPY,temp_dc ! copy the filtered sensitivites
+
+ALLSEL
+/POST1
+SET,LAST
+ETABLE,BlurredSensitivies
+*VPUT,dc(1,1),ELEM, ,ETAB,BlurredSensitivies, , ,2
+PLETAB,BlurredSensitivies,NOAV
+
+
+
+!ETABLE,Strains,EPEL,1
+!*DIM,strains,ARRAY,numberofelements
+!*DO,i,1,numberofelements,1	
+!	*GET,strains(Elements(i),1),ELEM,Elements(i),ETAB,Strains
+!*ENDDO

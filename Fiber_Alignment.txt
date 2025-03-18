@@ -1,0 +1,91 @@
+!This routine is used for aligning element coordinate systems with the principal stress directions.
+!Orthotropic Material properties follow the element coordinates therefore fibers are aligned with the principal stress directions.
+!Firstly model is setup in the Ansys Mechanical. Geometry, Material Properties, Meshing and Boundary Conditions are set. 
+!In this model there are two compression only supports and one bearing load applied on the hole surfaces.Reprensenting a real life experiment.
+!Also there are also two cylindirical supports which Radial and Tangetial directions are free but axial direction is hold to prevent lateral instability of the structure
+!After setup of the model it can be transferred to APDL by using Workbench.
+!Right click in the APDL module and click "Edit in Mechanical APDL".
+!Copy paste the commands below in the Command Line of APDL.
+
+ALLSEL
+
+CSYS,0
+
+*DO,iteration,1,FA_Iterations,1 !Start Iteration for fiber alignment search
+
+	ALLSEL
+	
+	/SOLU
+	SOLVE
+
+	/POST1
+	
+	SET,LAST
+	PRENERGY,ALL ! Printed stored stiffness energy !!
+
+	*GET, ComplianceHistory(iteration), PRENERGY, , TOTE, 1
+		
+	!Store result of each element in Element Tables.
+	
+	ETABLE,sx,S,X ! Average stress along global X direction at the element centroid i.e. Normal Stress along global X direction
+	ETABLE,sy,S,Y! Average stress along global Y direction at the element centroid i.e. Normal Stress along global Y direction
+	ETABLE,sz,S,Z! Average stress along global Z direction at the element centroid i.e. Normal Stress along global Z direction
+	ETABLE,sxy,S,XY! Average shear stress on global XY at the element centroid
+	ETABLE,syz,S,YZ! Average shear stress on global YZ at the element centroid
+	ETABLE,sxz,S,XZ! Average shear stress on global XZ at the element centroid
+
+	!Fill StressState ARRAY with the values stored in Element Tables
+	
+	*DO,k,1,numberofelements,1
+		*GET,StressState(k,1),ETAB,1,ELEM,Elements(k,1) ! First column is Normal X stresses i.e. StressState(2,1) is Normal Stress X at the centroid of Element 2
+		*GET,StressState(k,2),ETAB,2,ELEM,Elements(k,1)
+		*GET,StressState(k,3),ETAB,3,ELEM,Elements(k,1)
+		*GET,StressState(k,4),ETAB,4,ELEM,Elements(k,1)
+		*GET,StressState(k,5),ETAB,5,ELEM,Elements(k,1)
+		*GET,StressState(k,6),ETAB,6,ELEM,Elements(k,1)
+	*ENDDO
+
+	!Averaging Stress State
+
+
+	ElementNo = ELNEXT(0)
+	*DO,i,1,numberofelements,1
+		*VSCFUN,K,LAST,ElementNeighbors%ElementNo% ! get number of neighbors for the element
+		*DO,s,1,6,1
+			temp_stress(ElementNo,s) = 0
+			*DO,j,1,K,1
+				temp_stress(ElementNo,s) = temp_stress(ElementNo,s) + StressState(ElementNeighbors%ElementNo%(j),s)*NeighborWeights%ElementNo%(j,1)
+			*ENDDO
+			temp_stress(ElementNo,s) = temp_stress(ElementNo,s) / TotalDistances(ElementNo,1)
+		*ENDDO
+		ElementNo = ELNEXT(ElementNo)
+	*ENDDO
+
+	*VFUN,StressState,COPY,temp_stress
+
+	*VFUN,Orientations,EULER,StressState ! Fill Orientations ARRAY with the Euler angles of the principal stresses of StressState. 
+
+
+	/PREP7 ! Enter preprocessor for Element Modifications
+
+	!Iterate among all Elements to modify Element Coordinate Systems i.e. Alignment of fiber orientations.
+
+	*DO,ele,1,numberofelements,1
+
+		ESEL,S,,,Elements(ele,1) !Select Element
+
+		!Get centroid coordinates of the selected element
+
+		LOCAL,20+ele,0,Elements(ele,2),Elements(ele,3),Elements(ele,4),Orientations(ele,1),Orientations(ele,2),Orientations(ele,3) !Define Local Coordinate (with ID Number : 10+ele ) at the center of element aligned with Principal Stresses
+
+		EMODIF,Elements(ele,1),ESYS,20+ele ! Assign the Local Coordinate to the element i.e. Align fiber orientations with 1st Principal Stress 
+
+		ALLSEL ! Select all elements
+
+		CSYS,0 ! Return to Global Coordinate System for next iteration
+
+	*ENDDO !End of element coordinate system modification
+
+	/PSYMB,CS,0 !Turn off local coordinate system display
+
+*ENDDO  ! End Iteration for fiber alignment search
